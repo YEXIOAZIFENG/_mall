@@ -1,3 +1,4 @@
+# 开发阶段的配置文件
 """
 Django settings for meiduo_mall project.
 
@@ -12,17 +13,25 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os, sys
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# print(sys.path)
+# ['/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload', '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages', '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
 
-# 追加导包路径
-sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
+
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+# 提供用来进行拼接的一个路径
+# /Users/chao/Desktop/meiduo_27/meiduo_mall/meiduo_mall
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# print(BASE_DIR)
+sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))  # 追加apps也为项目导包路径
+# print(sys.path)
+# ['/Users/chao/Desktop/meiduo_27/meiduo_mall/meiduo_mall/apps', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload', '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages', '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'j!^7@%(*earsf6+akrt9=t!)ti=+38v3=%m@j(t($ldu3cp@a$'
+SECRET_KEY = '(nx@1naz!ub21#_7+aq_m=%8^-z6qdpp+%-dv^9ce%!gp+a_!q'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -30,7 +39,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # Application definition
-
+# 注册应用,安装应用
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -38,7 +47,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'users.apps.UsersConfig',
+
+    'users.apps.UsersConfig',  # 用户模块
 ]
 
 MIDDLEWARE = [
@@ -53,10 +63,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'meiduo_mall.urls'
 
+# 模板配置项
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.jinja2.Jinja2',  # jinja2模板引擎
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'BACKEND': 'django.template.backends.jinja2.Jinja2',  # 修改模板引擎为Jinja2
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # 配置模板文件加载路径
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -70,28 +81,13 @@ TEMPLATES = [
         },
     },
 ]
-#
-# TEMPLATES = [
-#     {
-#         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-#         'DIRS': [],
-#         'APP_DIRS': True,
-#         'OPTIONS': {
-#             'context_processors': [
-#                 'django.template.context_processors.debug',
-#                 'django.template.context_processors.request',
-#                 'django.contrib.auth.context_processors.auth',
-#                 'django.contrib.messages.context_processors.messages',
-#             ],
-#         },
-#     },
-# ]
 
 WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
+# 数据库配置
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # 数据库引擎
@@ -100,16 +96,8 @@ DATABASES = {
         'USER': 'meiduo_27',  # 数据库用户名
         'PASSWORD': 'meiduo_27',  # 数据库用户密码
         'NAME': 'meiduo_27'  # 数据库名字
-    },
+    }
 }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': os.path.join(BASE_DIR, '../../db.sqlite3'),
-#     }
-# }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -145,15 +133,16 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
+# 静态文件访问的路由前缀
 STATIC_URL = '/static/'
-
 # 配置静态文件加载路径
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# redis数据库配置
 CACHES = {
     "default": {  # 默认
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/0",
+        "LOCATION": "redis://127.0.0.1:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -166,9 +155,12 @@ CACHES = {
         }
     },
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "session"
 
+# session配置
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"  # 缓存
+SESSION_CACHE_ALIAS = "session"  # 缓存到redis的一号数据库
+
+# 日志输出器配置
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,  # 是否禁用已经存在的日志器
@@ -209,5 +201,6 @@ LOGGING = {
         },
     }
 }
+
 # 修改Django认证系统中的用户模型
 AUTH_USER_MODEL = 'users.User'
