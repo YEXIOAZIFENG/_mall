@@ -36,7 +36,7 @@ SECRET_KEY = '(nx@1naz!ub21#_7+aq_m=%8^-z6qdpp+%-dv^9ce%!gp+a_!q'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["www.meiduo.site"]
 
 # Application definition
 # 注册应用,安装应用
@@ -47,8 +47,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
     'users.apps.UsersConfig',  # 用户模块
+    'oauth.apps.OauthConfig',  # QQ模块
 ]
 
 MIDDLEWARE = [
@@ -154,6 +155,13 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
+    "verify_code": {  # 验证码
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
 }
 
 # session配置
@@ -204,3 +212,16 @@ LOGGING = {
 
 # 修改Django认证系统中的用户模型
 AUTH_USER_MODEL = 'users.User'
+
+# 自定义的用户认证后端
+AUTHENTICATION_BACKENDS = ['users.utils.UsernameMobileAuthBackend']
+
+
+# 修改Django中登录界面的路由
+LOGIN_URL = '/login/'
+
+# QQ登录配置
+QQ_CLIENT_ID = '101518219'
+QQ_CLIENT_SECRET = '418d84ebdc7241efb79536886ae95224'
+QQ_REDIRECT_URI = 'http://www.meiduo.site:8000/oauth_callback'
+
