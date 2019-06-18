@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.views import View
 from django import http
-import re
+import re, json
 from django.contrib.auth import login, authenticate, logout
 from django_redis import get_redis_connection
 from django.conf import settings
@@ -11,6 +11,8 @@ from django.contrib.auth import mixins
 
 from .models import User
 from meiduo_mall.utils.response_code import RETCODE
+from .utils import generate_verify_email_url, check_verify_email_token
+from celery_tasks.email.tasks import send_verify_email
 
 
 class RegisterView(View):
@@ -179,7 +181,6 @@ class LogoutView(View):
     """退出登录"""
 
     def get(self, request):
-
         # 清除状态保持数据
         logout(request)
         # 重定向到login
@@ -191,43 +192,71 @@ class LogoutView(View):
         return response
 
 
-
-"""
-if xx:
-    a=20
-else:
-    a = 10
-    a = 20 if xx: else 10
-"""
-
-
-# class InfoView(View):
-#     """展示用户中心"""
-#
-#     def get(self, request):
-#         user = request.user
-#         # 判断用户是否登录, 如果登录显示个人中心界面
-#         if user.is_authenticated:
-#             return render(request, 'user_center_info.html')
-#         else:
-#             # 如果用户没有登录,重宝向到登录界面
-#             return redirect('/login/?next=/info/')
-
-
-# class InfoView(View):
-#     """展示用户中心"""
-#     @method_decorator(login_required)
-#     def get(self, request):
-#         # 判断用户是否登录, 如果登录显示个人中心界面
-#         return render(request, 'user_center_info.html')
-
-
 class InfoView(mixins.LoginRequiredMixin, View):
     """展示用户中心"""
-    def get(self, request):
+
+    @staticmethod
+    def get(request):
         # 判断用户是否登录, 如果登录显示个人中心界面
         return render(request, 'user_center_info.html')
 
-# print(InfoView.__mro__)
+
+class EmailView(mixins.LoginRequiredMixin, View):
+    """添加邮箱"""
+
+    def put(self, request):
+        json_str = request.body.decode()  # body返回的是bytes
+        json_dict = json.loads(json_str)  # 将json字符串转换成json字典
+        email = json_dict.get('email')
+
+        # 校验邮箱
+        if not re.match(r'^[a-z0-9][\w\.\-]*@[a-z0-9\-]+(\.[a-z]{2,5}){1,2}$', email):
+            return http.HttpResponseForbidden('邮箱格式错误')
+
+        # 获取登录用户user模型对象
+        user = request.user
+        # 给user的email字段赋值
+        user.email = email
+        user.save()
+
+        # 设置完邮箱那一刻就对用户邮箱发个邮件
+        # send_mail()
+        # 生成邮箱激活url
+        verify_url = generate_verify_email_url(user)
+        # celery进行异步发送邮件
+        send_verify_email.delay(email, verify_url)
+
+        # 响应
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '添加邮箱成功'})
 
 
+class EmailVerificationView(View):
+    """激活邮箱"""
+
+    def get(self, request):
+
+        # 获取url中查询参数
+        token = request.GET.get('token')
+
+        if token is None:
+            return http.HttpResponseForbidden('缺少token参数')
+
+        # 对token进行解密并查询到要激活邮箱的那个用户
+        user = check_verify_email_token(token)
+        # 如果没有查询到user,提前响应
+        if user is None:
+            return http.HttpResponseForbidden('token无效')
+        # 如果查询到user,修改它的email_active字段为True,再save()
+        user.email_active = True
+        user.save()
+        # 响应
+        # return render(request, 'user_center_info.html')
+        return redirect('/info/')
+
+
+class AddressView(mixins.LoginRequiredMixin, View):
+    """用户收货地址"""
+
+    def get(self, request):
+        """提供收货地址界面"""
+        return render(request, 'user_center_site.html')

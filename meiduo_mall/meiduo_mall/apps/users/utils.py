@@ -1,6 +1,9 @@
 from django.contrib.auth.backends import ModelBackend
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadData
 import re
+
 from .models import User
+from django.conf import settings
 
 
 def get_user_by_account(account):
@@ -39,3 +42,37 @@ class UsernameMobileAuthBackend(ModelBackend):
         # 校验user是否存在并校验密码是否正确
         if user and user.check_password(password):
             return user
+
+
+def generate_verify_email_url(user):
+    """拼接用户邮箱激活url"""
+
+    # 创建加密对象
+    serializer = Serializer(settings.SECRET_KEY, 60 * 60 * 24)
+    # 包装要加密的字典数据
+    data = {'user_id': user.id, 'email': user.email}
+    # 对字典进行加密
+    token = serializer.dumps(data).decode()
+    # 拼接用户激活邮箱url
+    verify_url = settings.EMAIL_VERIFY_URL + '?token=' + token
+
+    return verify_url
+
+
+def check_verify_email_token(token):
+    """对token进行解密并返回user或None"""
+
+    # 创建加密对象
+    serializer = Serializer(settings.SECRET_KEY, 60 * 60 * 24)
+    try:
+        data = serializer.loads(token)  # 解密
+        user_id = data.get('user_id')  # 解密没有问题后取出里面数据
+        email = data.get('email')
+        try:
+            user = User.objects.get(id=user_id, email=email)  # 查询唯一用户
+            return user  # 查询到直接返回
+        except User.DoesNotExist:
+            return None
+
+    except BadData:
+        return None
