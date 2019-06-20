@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
     'users.apps.UsersConfig',  # 用户模块
     'oauth.apps.OauthConfig',  # QQ模块
+    'areas.apps.AreasConfig',  # 地址
+
 ]
 
 MIDDLEWARE = [
@@ -64,7 +66,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'meiduo_mall.urls'
 
-# 模板配置项
+# 模板配置项dev.py
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.jinja2.Jinja2',  # 修改模板引擎为Jinja2
