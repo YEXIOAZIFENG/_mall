@@ -47,11 +47,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
+
     'users.apps.UsersConfig',  # 用户模块
     'oauth.apps.OauthConfig',  # QQ模块
-    'areas.apps.AreasConfig',  # 地址
-
+    'areas.apps.AreasConfig',  # 省市区模块
+    'contents.apps.ContentsConfig',  # 首页广告模块
+    'goods.apps.GoodsConfig',  # 商品模块
 ]
 
 MIDDLEWARE = [
