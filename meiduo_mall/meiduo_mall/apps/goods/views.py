@@ -2,7 +2,6 @@ from django.shortcuts import render
 from django.views import View
 from django import http
 from django.core.paginator import Paginator, EmptyPage
-
 from contents.utils import get_categories
 from .utils import get_breadcrumb
 from .models import GoodsCategory, SKU
@@ -14,6 +13,7 @@ class ListView(View):
 
     def get(self, request, category_id, page_num):
         """
+        :param request:
         :param category_id: # 三级类别id
         :param page_num: 要看第几页数据
         """
@@ -26,6 +26,7 @@ class ListView(View):
         sort = request.GET.get('sort', 'default')
 
         sort_field = '-create_time'  # 定义默认的排序字段
+        # 按照价格由高到低
         if sort == 'price':
             sort_field = '-price'
         elif sort == 'hot':
@@ -56,11 +57,11 @@ class ListView(View):
         return render(request, 'list.html', context)
 
 
-
 class HotGoodsView(View):
     """商品热销排序"""
 
-    def get(self, request, category_id):
+    @staticmethod
+    def get(request, category_id):
 
         # 校验
         try:
@@ -89,7 +90,8 @@ class HotGoodsView(View):
 class DetailView(View):
     """商品详情界面"""
 
-    def get(self, request, sku_id):
+    @staticmethod
+    def get(request, sku_id):
 
         try:
             sku = SKU.objects.get(id=sku_id)
@@ -108,7 +110,6 @@ class DetailView(View):
         for current_sku_spec in current_sku_spec_qs:
             current_sku_option_ids.append(current_sku_spec.option_id)
 
-
         """2.构造规格选择仓库
         {(8, 11): 3, (8, 12): 4, (9, 11): 5, (9, 12): 6, (10, 11): 7, (10, 12): 8}
         """
@@ -123,7 +124,6 @@ class DetailView(View):
             for temp_spec in temp_spec_qs:
                 temp_sku_option_ids.append(temp_spec.option_id)
             spec_sku_map[tuple(temp_sku_option_ids)] = temp_sku.id
-
 
         """3.组合 并找到sku_id 绑定"""
         spu_spec_qs = spu.specs.order_by('id')  # 获取当前spu中的所有规格
@@ -140,7 +140,7 @@ class DetailView(View):
         context = {
             'categories': get_categories(),  # 商品分类
             'breadcrumb': get_breadcrumb(category),  # 面包屑导航
-            'sku': sku,  # 当前要显示的sku模型对象
+
             'category': category,  # 当前的显示sku所属的三级类别
             'spu': spu,  # sku所属的spu
             'spec_qs': spu_spec_qs,  # 当前商品的所有规格数据
