@@ -28,4 +28,6 @@ urlpatterns = [
     url(r'^', include('oauth.urls', namespace='oauth')),  # QQ模块
 
     url(r'^', include('areas.urls', namespace='areas')),  # 地址模块
+
+    url(r'^', include('goods.urls', namespace='goods')),  # 列表模块
 ]

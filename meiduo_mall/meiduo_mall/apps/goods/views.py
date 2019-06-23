@@ -1,10 +1,11 @@
 from django.shortcuts import render
+from django.utils import timezone
 from django.views import View
 from django import http
 from django.core.paginator import Paginator, EmptyPage
 from contents.utils import get_categories
 from .utils import get_breadcrumb
-from .models import GoodsCategory, SKU
+from .models import GoodsCategory, SKU, GoodsVisitCount
 from meiduo_mall.utils.response_code import RETCODE
 
 
@@ -13,7 +14,6 @@ class ListView(View):
 
     def get(self, request, category_id, page_num):
         """
-        :param request:
         :param category_id: # 三级类别id
         :param page_num: 要看第几页数据
         """
@@ -26,7 +26,6 @@ class ListView(View):
         sort = request.GET.get('sort', 'default')
 
         sort_field = '-create_time'  # 定义默认的排序字段
-        # 按照价格由高到低
         if sort == 'price':
             sort_field = '-price'
         elif sort == 'hot':
@@ -60,8 +59,7 @@ class ListView(View):
 class HotGoodsView(View):
     """商品热销排序"""
 
-    @staticmethod
-    def get(request, category_id):
+    def get(self, request, category_id):
 
         # 校验
         try:
@@ -90,8 +88,7 @@ class HotGoodsView(View):
 class DetailView(View):
     """商品详情界面"""
 
-    @staticmethod
-    def get(request, sku_id):
+    def get(self, request, sku_id):
 
         try:
             sku = SKU.objects.get(id=sku_id)
@@ -140,9 +137,37 @@ class DetailView(View):
         context = {
             'categories': get_categories(),  # 商品分类
             'breadcrumb': get_breadcrumb(category),  # 面包屑导航
-
+            'sku': sku,  # 当前要显示的sku模型对象
             'category': category,  # 当前的显示sku所属的三级类别
             'spu': spu,  # sku所属的spu
             'spec_qs': spu_spec_qs,  # 当前商品的所有规格数据
         }
         return render(request, 'detail.html', context)
+
+
+class DetailVisitView(View):
+    """详情页分类商品访问量"""
+
+    @staticmethod
+    def post(self, request, category_id):
+        """记录分类商品访问量"""
+        try:
+            category = GoodsCategory.objects.get(id=category_id)
+        except GoodsCategory.DoesNotExist:
+            return http.HttpResponseForbidden('缺少必传参数')
+
+        today_date = timezone.now()  # 获取当天的日期
+
+        try:
+            # 查询当天有没有访问过此类别商品
+            counts_data = GoodsVisitCount.objects.get(date=today_date, category=category)
+        except GoodsVisitCount.DoesNotExist:
+            # 如果没有访问过就创建一个新记录
+            counts_data = GoodsVisitCount(
+                category=category
+            )
+
+            counts_data.count += 1  # 增加访问量
+            counts_data.save()
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
