@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.contrib.auth import mixins
 
+from goods.models import SKU
 from .models import User, Address
 from meiduo_mall.utils.response_code import RETCODE
 from .utils import generate_verify_email_url, check_verify_email_token
@@ -304,7 +305,6 @@ class CreateAddressView(mixins.LoginRequiredMixin, View):
         if count >= 20:
             return http.JsonResponse({'code': RETCODE.THROTTLINGERR, 'errmsg': '收货地址数量超过上限'})
 
-
         # 接收请求体 body数据
         json_dict = json.loads(request.body.decode())
         title = json_dict.get('title')
@@ -532,3 +532,69 @@ class ChangePasswordView(LoginRequiredView):
         user.save()
 
         return redirect('/logout/')
+
+
+class UserBrowseHistory(View):
+    """商品浏览记录"""
+
+    def post(self, request):
+        """商品浏览记录保存"""
+        # 只有登录用户才需要保存商品浏览记录
+        if request.user.is_authenticated:
+            # 获取请求体中的sku_id
+            json_dict = json.loads(request.body.decode())
+            sku_id = json_dict.get('sku_id')
+
+            # 校验
+            try:
+                sku = SKU.objects.get(id=sku_id)
+            except SKU.DoesNotExist:
+                return http.HttpResponseForbidden('sku_id不存在')
+
+            # 创建redis连接对象
+            redis_conn = get_redis_connection('history')
+            pl = redis_conn.pipeline()
+            # 获取当前登录用户
+            user = request.user
+            # 拼接redis,列表的key
+            key = 'history_%s' % user.id
+            # 先去重
+            pl.lrem(key, 0, sku_id)
+            # 再插入列表开头
+            pl.lpush(key, sku_id)
+            # 只保留前五个元素
+            pl.ltrim(key, 0, 4)
+            pl.execute()
+            # 响应
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+        else:
+            return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': '用户未登录'})
+
+    def get(self, request):
+        """查询商品浏览记录"""
+        # 判断当前用户是否登录
+        if request.user.is_authenticated:
+
+            # 创建redis连接对象
+            redis_conn = get_redis_connection('history')
+            # lrange获取当前用户在redis中存储的浏览记录sku_id
+            sku_ids = redis_conn.lrange('history_%s' % request.user.id, 0, -1)
+
+            # sku_qs = SKU.objects.filter(id__in=sku_ids)  # [5, 2, 1]
+            sku_list = []  # 用来装每一个sku的字典
+            # 通过sku_id查询出对应的sku模型
+            for sku_id in sku_ids:
+                sku = SKU.objects.get(id=sku_id)
+                sku_list.append({
+                    'id': sku.id,
+                    'name': sku.name,
+                    'default_image_url': sku.default_image.url,
+                    'price': sku.price
+                })
+
+            # 把sku模型转换成字典, 再添加到列表中,一定要注意它的顺序
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': sku_list})
+        # 响应
+        else:
+            # 如果没有登录,响应其它
+            return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': '未登录用户', 'skus': []})

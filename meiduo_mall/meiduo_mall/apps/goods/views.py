@@ -159,9 +159,12 @@ class DetailVisitView(View):
         today_date = timezone.now()  # 获取当天的日期
 
         try:
+
             # 查询当天有没有访问过此类别商品
             counts_data = GoodsVisitCount.objects.get(date=today_date, category=category)
+
         except GoodsVisitCount.DoesNotExist:
+
             # 如果没有访问过就创建一个新记录
             counts_data = GoodsVisitCount(
                 category=category
