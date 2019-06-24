@@ -14,7 +14,6 @@ from meiduo_mall.utils.response_code import RETCODE
 
 class CartsView(View):
 
-    @staticmethod
     def post(self, request):
         """添加购物车"""
         # 接收和校验参数
@@ -98,3 +97,59 @@ class CartsView(View):
             response.set_cookie('carts', cart_str)
 
             return response
+
+    def get(self, request):
+        """购物车数据展示"""
+
+        # 获取当前user
+        user = request.user
+        # 判断当前用户是否登录
+        if user.is_authenticated:
+            # 如果登录从redis中获取出购物车数据
+            redis_conn = get_redis_connection('carts')
+            # 获取hash数据  {'sku_id_1: count}
+            redis_carts = redis_conn.hgetall('carts_%s' % user.id)
+            # 获取set集合中商品勾选状态 {sku_id_1}
+            selected_ids = redis_conn.smembers('selected_%s' % user.id)
+            """
+                {
+                    sku_id_1: {'count': 1, 'selected': True},
+                    sku_id_2: {'count': 2, 'selected': False},
+
+                }
+            """
+            # 把redis购物车数据 hash和 set集合向cookie购物车数据格式转换,目的为了,后期代码只写一遍
+            cart_dict = {}  # 用来包装redis购物车数据字典
+            for sku_id_bytes in redis_carts:
+                cart_dict[int(sku_id_bytes)] = {
+                    'count': int(redis_carts[sku_id_bytes]),
+                    'selected': sku_id_bytes in selected_ids
+                }
+        else:
+            # 如果未登录,从cookie中获取购物车数据
+            cart_str = request.COOKIES.get('carts')
+            # 判断当前有没有cookie购物车数据
+            if cart_str:
+                # 需要将购物车字符串数据转换成字典
+                cart_dict = pickle.loads(base64.b64decode(cart_str.encode()))
+            else:
+                # 如果没有cookie购物车数据
+                return render(request, 'cart.html')
+
+        # 根据sku_id查询到sku
+        sku_qs = SKU.objects.filter(id__in=cart_dict.keys())
+        cart_skus = []  # 包装前端需要渲染的购物车商品所有数据
+        for sku in sku_qs:
+            cart_skus.append(
+                {
+                    'id': sku.id,
+                    'name': sku.name,
+                    'default_image_url': sku.default_image.url,
+                    'price': str(sku.price),  # 为了方便前端解析此数据
+                    'count': cart_dict[sku.id]['count'],
+                    'selected': str(cart_dict[sku.id]['selected']),  # js中的bool  true,false
+                    'amount': str(sku.price * cart_dict[sku.id]['count'])
+                }
+            )
+        # 包装模板需要进行渲染的数据
+        return render(request, 'cart.html', {'cart_skus': cart_skus})

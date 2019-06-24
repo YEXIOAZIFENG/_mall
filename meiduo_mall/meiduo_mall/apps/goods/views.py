@@ -148,7 +148,6 @@ class DetailView(View):
 class DetailVisitView(View):
     """详情页分类商品访问量"""
 
-    @staticmethod
     def post(self, request, category_id):
         """记录分类商品访问量"""
         try:

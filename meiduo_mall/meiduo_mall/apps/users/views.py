@@ -197,7 +197,6 @@ class LogoutView(View):
 class InfoView(mixins.LoginRequiredMixin, View):
     """展示用户中心"""
 
-    @staticmethod
     def get(request):
         # 判断用户是否登录, 如果登录显示个人中心界面
         return render(request, 'user_center_info.html')
