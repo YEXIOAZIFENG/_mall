@@ -32,4 +32,8 @@ urlpatterns = [
     url(r'^', include('goods.urls', namespace='goods')),  # 列表模块
 
     url(r'^', include('carts.urls', namespace='carts')),  # 购物车模块
+
+    url(r'^', include('orders.urls', namespace='order')),  # 订单模块
+
+    url(r'^', include('forget.urls', namespace='forget')),  # 忘记密码模块
 ]
