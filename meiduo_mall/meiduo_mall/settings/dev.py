@@ -176,7 +176,7 @@ CACHES = {
     },
     "carts": {  # 存储登录用户购物车数据
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://192.168.13.73:6379/4",
+        "LOCATION": "redis://127.0.0.1:6379/4",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
