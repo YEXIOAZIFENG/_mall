@@ -14,7 +14,14 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import os, sys
 
 # print(sys.path)
-# ['/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload', '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages', '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
+# ['/Users/chao/Desktop/meiduo_27/meiduo_mall',
+# '/Users/chao/Desktop/meiduo_27/meiduo_mall',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload',
+# '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages',
+# '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -24,7 +31,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # print(BASE_DIR)
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))  # 追加apps也为项目导包路径
 # print(sys.path)
-# ['/Users/chao/Desktop/meiduo_27/meiduo_mall/meiduo_mall/apps', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload', '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6', '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages', '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
+# ['/Users/chao/Desktop/meiduo_27/meiduo_mall/meiduo_mall/apps',
+# '/Users/chao/Desktop/meiduo_27/meiduo_mall', '/Users/chao/Desktop/meiduo_27/meiduo_mall',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python36.zip',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/lib-dynload',
+# '/usr/local/Cellar/python3/3.6.2/Frameworks/Python.framework/Versions/3.6/lib/python3.6',
+# '/Users/chao/.virtualenvs/meiduo_new/lib/python3.6/site-packages',
+# '/Applications/PyCharm.app/Contents/helpers/pycharm_matplotlib_backend']
 
 
 # Quick-start development settings - unsuitable for production
@@ -48,13 +62,19 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
+    'haystack',  # 全文检索
+    'django_crontab',  # 定时器模块
 
+    # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
     'users.apps.UsersConfig',  # 用户模块
     'oauth.apps.OauthConfig',  # QQ模块
     'areas.apps.AreasConfig',  # 省市区模块
     'contents.apps.ContentsConfig',  # 首页广告模块
     'goods.apps.GoodsConfig',  # 商品模块
+    'orders.apps.OrdersConfig',
+    'payment.apps.PaymentConfig',
+    'weibo_login.apps.WeiboLoginConfig',
+
 ]
 
 MIDDLEWARE = [
@@ -97,12 +117,21 @@ WSGI_APPLICATION = 'meiduo_mall.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # 数据库引擎
-        'HOST': '127.0.0.1',  # 数据库主机
+        'HOST': '0.0.0.0',  # 数据库主机
         'PORT': 3306,  # 数据库端口
-        'USER': 'meiduo_27',  # 数据库用户名
-        'PASSWORD': 'meiduo_27',  # 数据库用户密码
+        'USER': 'root',  # 数据库用户名
+        'PASSWORD': '123456',  # 数据库用户密码
         'NAME': 'meiduo_27'  # 数据库名字
-    }
+    },
+
+    # 'slave': {  # 从机(查)
+    #     'ENGINE': 'django.db.backends.mysql',  # 数据库引擎
+    #     'HOST': '127.0.0.1',  # 数据库主机
+    #     'PORT': 8306,  # 数据库端口
+    #     'USER': 'root',  # 数据库用户名
+    #     'PASSWORD': '123456',  # 数据库用户密码
+    #     'NAME': 'meiduo_27'  # 数据库名字
+    # }
 }
 
 # Password validation
@@ -254,7 +283,47 @@ EMAIL_FROM = '美多商城<15071718704@163.com>'  # 发件人抬头
 # 邮箱验证链接
 EMAIL_VERIFY_URL = 'http://www.meiduo.site:8000/emails/verification/'
 
-
 MEDIA_URL = 'http://192.168.13.73:8888/'
 # 自定义文件存储类
 DEFAULT_FILE_STORAGE = 'meiduo_mall.utils.fastdfs.fdfs_storage.FastDFSStorage'
+
+# Haystack
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine',
+        'URL': 'http://192.168.103.210:9200/',  # Elasticsearch服务器ip地址，端口号固定为9200
+        'INDEX_NAME': 'meiduo_mall',  # Elasticsearch建立的索引库的名称
+    },
+}
+
+# 当添加、修改、删除数据时，自动生成索引
+HAYSTACK_SIGNAL_PROCESSOR = 'haystack.signals.RealtimeSignalProcessor'
+
+# 搜索结果每页显示5条
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 5
+
+# 支付宝
+ALIPAY_APPID = '2016091900551154'
+ALIPAY_DEBUG = True  # 表示是沙箱环境还是真实支付环境
+ALIPAY_URL = 'https://openapi.alipaydev.com/gateway.do'
+ALIPAY_RETURN_URL = 'http://www.meiduo.site:8000/payment/status/'
+# ALIPAY_RETURN_URL = 'http://www.meiduo.site:80/payment/status/'
+
+CRONJOBS = [
+    # 每1分钟生成一次首页静态文件generate_static_index_html
+    ('*/1 * * * *', 'contents.crons.generate_static_index_html',
+     '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log'))
+]
+# 解决定时器编码问题
+CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'
+
+# 指定数据库的路由
+# DATABASE_ROUTERS = ['meiduo_mall.utils.db_router.MasterSlaveDBRouter']
+
+# 收集的静态文件存储位置
+STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
+
+# 用于微博登录的配置参数
+WEIBO_CLIENT_ID = '3305669385'
+WEIBO__CLIENT_SECRET = '74c7bea69d5fc64f5c3b80c802325276'
+WEIBO__REDIRECT_URI = 'http://www.meiduo.site:8000/sina_callback'

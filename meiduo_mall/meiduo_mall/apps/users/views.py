@@ -1,20 +1,30 @@
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.views import View
+from django.http import HttpResponseForbidden
+import re, json, pickle, base64
+from django.contrib.auth import login, authenticate, logout, mixins
+from .models import User
 from django import http
-import re, json
-from django.contrib.auth import login, authenticate, logout
-from django_redis import get_redis_connection
-from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-from django.contrib.auth import mixins
+from django_redis import get_redis_connection
+from django.core.paginator import Paginator, EmptyPage
 
-from goods.models import SKU
-from .models import User, Address
 from meiduo_mall.utils.response_code import RETCODE
+from meiduo_mall.utils.views import LoginRequiredView
 from .utils import generate_verify_email_url, check_verify_email_token
 from celery_tasks.email.tasks import send_verify_email
-from meiduo_mall.utils.views import LoginRequiredView
+from .models import Address
+from goods.models import SKU
+from carts.utils import merge_cart_cookie_to_redis
+
+from orders.models import OrderInfo, OrderGoods
+
+from random import randint
+from celery_tasks.sms.tasks import send_sms_code
+import logging
+
+logger = logging.getLogger('django')
 
 
 class RegisterView(View):
@@ -197,7 +207,7 @@ class LogoutView(View):
 class InfoView(mixins.LoginRequiredMixin, View):
     """展示用户中心"""
 
-    def get(self,request):
+    def get(self, request):
         # 判断用户是否登录, 如果登录显示个人中心界面
         return render(request, 'user_center_info.html')
 
@@ -533,67 +543,326 @@ class ChangePasswordView(LoginRequiredView):
         return redirect('/logout/')
 
 
-class UserBrowseHistory(View):
-    """商品浏览记录"""
+class UserBrowseHistory(LoginRequiredView):
+    """
+    用户浏览记录
+    只记录登录用户的
+    """
 
     def post(self, request):
-        """商品浏览记录保存"""
-        # 只有登录用户才需要保存商品浏览记录
-        if request.user.is_authenticated:
-            # 获取请求体中的sku_id
-            json_dict = json.loads(request.body.decode())
-            sku_id = json_dict.get('sku_id')
+        # 获取数据
+        json_dict = json.loads(request.body.decode())
+        sku_id = json_dict.get('sku_id')
+        # 校验数据
+        try:
+            sku = SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return http.HttpResponseForbidden('sku_id无效')
 
-            # 校验
-            try:
-                sku = SKU.objects.get(id=sku_id)
-            except SKU.DoesNotExist:
-                return http.HttpResponseForbidden('sku_id不存在')
+        user_id = request.user.id
 
-            # 创建redis连接对象
-            redis_conn = get_redis_connection('history')
-            pl = redis_conn.pipeline()
-            # 获取当前登录用户
-            user = request.user
-            # 拼接redis,列表的key
-            key = 'history_%s' % user.id
-            # 先去重
-            pl.lrem(key, 0, sku_id)
-            # 再插入列表开头
-            pl.lpush(key, sku_id)
-            # 只保留前五个元素
-            pl.ltrim(key, 0, 4)
-            pl.execute()
-            # 响应
-            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
-        else:
-            return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': '用户未登录'})
+        # 使用管道提供性能
+        redis_conn = get_redis_connection('history')
+        pl = redis_conn.pipeline()
+
+        # 去重
+        pl.lrem('history_%s' % user_id, 0, sku_id)
+        # 保存数据
+        pl.lpush('history_%s' % user_id, sku_id)
+        # 截取前5条记录，只保存5条记录
+        pl.ltrim('history_%s' % user_id, 0, 4)
+        pl.execute()
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
 
     def get(self, request):
-        """查询商品浏览记录"""
-        # 判断当前用户是否登录
-        if request.user.is_authenticated:
+        """
+        展示浏览记录
+        """
+        redis_conn = get_redis_connection('history')
+        sku_list = redis_conn.lrange('history_%s' % request.user.id, 0, -1)
+        skus = []
+        for sku in sku_list:
+            sku = SKU.objects.get(id=sku)
+            skus.append({
+                'id': sku.id,
+                'name': sku.name,
+                'default_image_url': sku.default_image.url,
+                'price': sku.price
+            })
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': skus})
 
-            # 创建redis连接对象
-            redis_conn = get_redis_connection('history')
-            # lrange获取当前用户在redis中存储的浏览记录sku_id
-            sku_ids = redis_conn.lrange('history_%s' % request.user.id, 0, -1)
 
-            # sku_qs = SKU.objects.filter(id__in=sku_ids)  # [5, 2, 1]
-            sku_list = []  # 用来装每一个sku的字典
-            # 通过sku_id查询出对应的sku模型
-            for sku_id in sku_ids:
-                sku = SKU.objects.get(id=sku_id)
-                sku_list.append({
-                    'id': sku.id,
-                    'name': sku.name,
-                    'default_image_url': sku.default_image.url,
-                    'price': sku.price
-                })
+class FindPasswd(View):
+    """忘记密码跳转界面"""
 
-            # 把sku模型转换成字典, 再添加到列表中,一定要注意它的顺序
-            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'skus': sku_list})
+    def get(self, request):
+        return render(request, 'find_password.html')
+
+
+class CheckUser(View):
+    """忘记密码验证"""
+
+    def get(self, request, username):
+        # 接收前端过来的数据
+        image_code_cli = request.GET.get('text')
+        image_code_id = request.GET.get('image_code_id')  # 长字符串
+
+        # 校验
+        if all([username, image_code_cli, image_code_id]) is False:
+            return http.HttpResponseForbidden('缺少必传参数')
+        if not re.match(r'^[0-9a-zA-Z_-]{5,20}$', username):
+            return HttpResponseForbidden('请输入5到20位用户名')
+
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return http.JsonResponse({'error': '用户不存在'}, status=404)
+
+        # 连接redis数据库
+        redis_conn = get_redis_connection('verify_code')
+        redis_image_code = redis_conn.get(image_code_id)  # 获取reids的验证码,bytes类型
+        redis_conn.delete(image_code_id)  # 删除redis验证码,只能用一次
+        redis_image_code_server = redis_image_code.decode()  # 将bytes转str
+
+        # 判断验证码是否过期
+        if redis_image_code is None:
+            return http.JsonResponse({'code': RETCODE.NECESSARYPARAMERR, 'errmsg': '图形验证码失效'})
+
+        # 前后端验证码校验,大小写统一
+        if image_code_cli.lower() != redis_image_code_server.lower():
+            return http.JsonResponse({'error': '验证码不一致'}, status=400)
+
+        # 获取当前用户手机号
+        mobile = user.mobile
+        data = {
+            'username': username,
+            'mobile': mobile
+        }
+
+        # 用户数据加密
+        access_token = base64.b64encode(pickle.dumps(data)).decode()
+        return http.JsonResponse(
+            {'code': RETCODE.OK, 'errmsg': 'OK', 'mobile': str(mobile).replace(mobile[3:7], '*' * 4),
+             'access_token': access_token})
+
+
+class FindBackPw(View):
+    """找回密码"""
+
+    def get(self, request):
+        # 接收加密数据
+        access_token = request.GET.get('access_token')
+
+        # 校验数据
+        if access_token is None:
+            return http.JsonResponse({'error': '用户或手机号错误'}, status=400)
+
+        data = pickle.loads(base64.b64decode(access_token.encode()))
+        mobile = data['mobile']
+
+        redis_conn = get_redis_connection('verify_code')
+        # 查询发送短信标记，如果60秒内发送过则提示过于频繁
+        # send_flag = redis_conn.get('send_flag_%s' % mobile)
+        # if send_flag:
+        #     return http.JsonResponse({'code': RETCODE.THROTTLINGERR, 'errmsg': '发送短信过于频繁'})
+
+        # 随机生成一个6位数字作为验证码
+        sms_code = '%06d' % randint(0, 999999)
+        logger.info(sms_code)
+
+        # 管道发送验证码
+        pl = redis_conn.pipeline()
+        pl.setex('sms_%s' % mobile, 300, sms_code)
+        pl.setex('send_flag_%s' % mobile, 300, 1)
+        pl.execute()
+        # 给当前手机号发短信,使用异步celery发送
+        send_sms_code.delay(mobile, sms_code)
         # 响应
-        else:
-            # 如果没有登录,响应其它
-            return http.JsonResponse({'code': RETCODE.SESSIONERR, 'errmsg': '未登录用户', 'skus': []})
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '发送短信验证码成功'})
+
+
+class VerifySmsCodeView(View):
+    """验证短信验证码"""
+
+    def get(self, request, username):
+        sms_code = request.GET.get('sms_code')
+        if sms_code is None:
+            return http.JsonResponse({'code': 400})
+        user = User.objects.get(username=username)
+        mobile = user.mobile
+
+        redis_conn = get_redis_connection('verify_code')
+        sms_code_server = redis_conn.get('sms_%s' % mobile)
+        sms_code_server = sms_code_server.decode()
+        redis_conn.delete('sms_%s' % mobile)
+
+        if not sms_code_server:
+            return http.HttpResponseForbidden('验证码过期')
+
+        if sms_code != sms_code_server:
+            return http.JsonResponse({'code': RETCODE.SMSCODERR, 'errmsg': '验证码错误'}, status=400)
+        data = {
+            'user_id': user.id,
+            'mobile': mobile
+        }
+        access_token = base64.b64encode(pickle.dumps(data)).decode()
+        redis_conn.setex('access_token_sms_%s' % user.id, 300, access_token)  # 保存验证码
+
+        return http.JsonResponse({'code': RETCODE.OK, 'user_id': user.id, 'access_token': access_token})
+
+
+class ResetPasswd(View):
+    """重置密码"""
+
+    def post(self, request, user_id):
+        # 接收数据
+        json_dict = json.loads(request.body.decode())
+        password = json_dict.get('password')
+        password2 = json_dict.get('password2')
+        access_token = json_dict.get('access_token')
+
+        # 校验
+        if all([password, password2, access_token]) is False:
+            return http.HttpResponseForbidden("缺少必传参数")
+        if not re.match(r'^[0-9a-zA-Z]{8,20}', password):
+            return HttpResponseForbidden('请输入8到20位密码')
+        if password != password2:
+            return HttpResponseForbidden('两次输入密码不一致')
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return http.HttpResponseForbidden('用户不存在')
+
+        redis_conn = get_redis_connection('verify_code')
+        access_token_server = redis_conn.get('access_token_sms_%s' % user.id)
+
+        if access_token_server is None:
+            return http.JsonResponse({'error': '数据错误'}, status=400)
+
+        data = pickle.loads(base64.b64decode(access_token.encode()))
+        if data is None:
+            return http.JsonResponse({'error': '数据错误'}, status=400)
+
+        user_id_server = data['user_id']
+
+        if int(user_id) != user_id_server:
+            return http.JsonResponse({'error': '数据错误'}, status=400)
+
+        user.set_password(password)
+        user.save()
+
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', })
+
+
+class OrderInfoView(LoginRequiredView):
+    """展示用户订单"""
+
+    def get(self, request, current):
+
+        # 1、查询当前用户的所有订单返回
+        user = request.user
+        orders = OrderInfo.objects.filter(user=user).order_by('-create_time')
+        # 如果没有订单则直接return
+        if not orders:
+            return render(request, 'user_center_order.html')
+        # 创建分页器，每页展示3条订单数据
+        paginator = Paginator(orders, 3)
+        # 获取它的总页数
+        total_page = paginator.num_pages
+        # 获取当前页数
+        page_num = current
+        try:
+            # 获取当前页面订单数据
+            page_orders = paginator.page(page_num)
+        except EmptyPage:
+            return http.HttpResponseNotFound('页面不存在')
+
+        for order in orders:
+            # 取出每个订单中的商品模型集
+            ordergoods_list = order.skus.all()
+            sku_list = []
+            # 取出商品模型集中的每个商品模型
+            for ordergood in ordergoods_list:
+                sku = ordergood.sku
+                sku.count = ordergood.count
+                sku.amount = sku.price * sku.count
+                sku_list.append(sku)
+            # 给order新添加属性
+            order.sku_list = sku_list
+            order.pay_method_name = OrderInfo.PAY_METHOD_CHOICES[order.pay_method - 1][1]
+            order.status_name = OrderInfo.ORDER_STATUS_CHOICES[order.status - 1][1]
+        context = {
+            'page_orders': page_orders,
+            'page_num': page_num,
+            'total_page': total_page
+        }
+
+        return render(request, 'user_center_order.html', context)
+
+
+class OrderComment(LoginRequiredView):
+    """用户评价"""
+
+    def get(self, request):
+        # 先接收order_id
+        order_id = request.GET.get('order_id')
+        try:
+            order = OrderInfo.objects.get(order_id=order_id)
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden('无效订单')
+        # 取出当前订单中未评价的所有商品
+        ordergoods = order.skus.filter(comment='')
+        # 创建前端需要的数据列表
+        uncomment_goods_list = []
+        for ordergood in ordergoods:
+            uncomment_goods_list.append({
+                'order_id': order_id,
+                'sku_id': ordergood.sku.id,
+                'name': ordergood.sku.name,
+                'price': str(ordergood.sku.price),
+                'default_image_url': ordergood.sku.default_image.url,
+            })
+
+        context = {
+            'uncomment_goods_list': uncomment_goods_list
+        }
+        return render(request, 'goods_judge.html', context)
+
+    def post(self, request):
+        """获取用户评价"""
+        # order_id: sku.order_id,
+        # sku_id: sku.sku_id,
+        # comment: sku.comment,
+        # score: sku.final_score,
+        # is_anonymous: sku.is_anonymous,
+        json_dict = json.loads(request.body.decode())
+        order_id = json_dict.get('order_id')
+        sku_id = json_dict.get('sku_id')
+        comment = json_dict.get('comment')
+        score = json_dict.get('score')
+        user = request.user
+        is_anonymous = json_dict.get('is_anonymous')
+        # 校验数据
+        if all([order_id, sku_id, comment, score]) is False:
+            return http.HttpResponseForbidden('缺少必传参数')
+        try:
+            orderinfo = OrderInfo.objects.get(order_id=order_id, user=user)
+        except OrderInfo.DoesNotExist:
+            return http.HttpResponseForbidden('参数order_id有误')
+        try:
+            ordergood = OrderGoods.objects.get(order_id=order_id, sku_id=sku_id)
+        except OrderGoods.DoesNotExist:
+            return http.HttpResponseForbidden('参数sku_id有误')
+        if len(comment) < 5:
+            return http.HttpResponseForbidden('评论字数不足')
+        # 查询到ordergoods对象，update相关信息
+        try:
+            orderinfo.skus.filter(sku_id=sku_id).update(comment=comment, score=score, is_anonymous=is_anonymous,
+                                                        is_commented=True)
+            orderinfo.status = OrderInfo.ORDER_STATUS_ENUM['FINISHED']
+            orderinfo.save()
+            print('ha')
+            return http.JsonResponse({'code': RETCODE.OK, 'errmsg': '评价成功'})
+        except Exception:
+            return http.JsonResponse({'code': RETCODE.DBERR, 'errmsg': '评价失败'})

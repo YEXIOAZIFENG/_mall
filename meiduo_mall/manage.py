@@ -1,4 +1,4 @@
-#!/home/python/.virtualenvs/meiduo_mall/bin/python3
+#!/home/ysw.virtualenvs/meiduo_mall/bin/python3
 import os
 import sys
 

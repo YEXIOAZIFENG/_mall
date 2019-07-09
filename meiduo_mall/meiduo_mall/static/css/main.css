@@ -4,7 +4,13 @@ html,body{height:100%}
 .header_con{
 	background-color:#f7f7f7;
 	height:29px;
-	border-bottom:1px solid #dddddd
+	border-bottom:1px solid #dddddd;
+    position: fixed;
+    left: 0px;
+    right: 0px;
+    text-align: center;
+    top: 0px;
+    z-index: 9;
 }
 
 .header{
@@ -484,7 +490,7 @@ html,body{height:100%}
 	font-size:18px;
 	color:#e83632;
 	text-indent:40px;
-	background:url(../images/clock.jpg) left center no-repeat; 
+	background:url(../images/clock.jpg) left center no-repeat;
 }
 .time_count{
 	height:39px;
@@ -554,11 +560,11 @@ html,body{height:100%}
 .time_goods_list .prize{
 	display:block;
 	width:200px;
-	white-space:nowrap; 
-	overflow:hidden; 
+	white-space:nowrap;
+	overflow:hidden;
 	text-overflow:ellipsis;
 	margin:5px auto;
-	color:#666;	
+	color:#666;
 }
 
 
@@ -676,9 +682,9 @@ html,body{height:100%}
 .bar_code_con{width:167px;height:172px;margin:0px auto;}
 .bar_code_tip{text-align:center;margin-top:10px;font-size:12px;}
 .third_party{border-top:1px solid #e0e0e0;margin-top:30px}
-.qq_login,.weixin_login,.register_btn{float:left;line-height:30px;margin-left:15px;margin-top:7px;color:#666;font-size:12px;text-indent:22px;background:url(../images/QQ-weixin.png) left 7px no-repeat;}
-.qq_login:hover,.weixin_login:hover,.register_btn:hover{color:#e3101e;text-decoration:underline}
-.weixin_login{background-position:left -35px;}
+.qq_login,.weibo_login,.register_btn{float:left;line-height:30px;margin-left:15px;margin-top:7px;color:#666;font-size:12px;text-indent:22px;background:url(../images/QQ-weibo.png) left 7px no-repeat;}
+.qq_login:hover,.weibo_login:hover,.register_btn:hover{color:#e3101e;text-decoration:underline}
+.weibo_login{background-position:left -35px;}
 .register_btn{background:url(../images/icons02.png) left 9px no-repeat;float:right;margin-right:15px}
 
 .name_input,.pass_input{width:306px;height:36px;border:1px solid #e0e0e0;background:url(../images/icons02.png) 280px -41px no-repeat #f8f8f8;outline:none;font-size:14px;text-indent:10px;position: absolute;left:0;top:0}
@@ -875,7 +881,7 @@ html,body{height:100%}
 }
 
 .order_list_table td{
-	border:1px solid #ddd;	
+	border:1px solid #ddd;
 	text-align:center;
 }
 
@@ -1124,7 +1130,7 @@ html,body{height:100%}
 	background:#810101;
 	margin-left:-14px;
 	margin-right:-14px;
-	margin-top:-14px;	
+	margin-top:-14px;
 	margin-bottom:10px;
 	overflow:hidden;
 }
@@ -1199,7 +1205,7 @@ html,body{height:100%}
 }
 
 .site_con .form_group .phone_code_input{
-	width:200px; 
+	width:200px;
 }
 
 .site_con .form_group .phone_code{
@@ -1633,3 +1639,9 @@ html,body{height:100%}
 	height:7px;
 	background: url(../images/arrow.png);
 }
+
+#right_top{
+	right: 10px;
+	top: 40%;
+}
+

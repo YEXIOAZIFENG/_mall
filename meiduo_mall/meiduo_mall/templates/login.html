@@ -4,9 +4,7 @@
 
 <head>
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-    <link rel="Shortcut Icon" href="/static/favicon.ico">
     <title>美多商城-登录</title>
-    <link rel="Shortcut Icon" href="/static/favicon.ico">
     <link rel="stylesheet" type="text/css" href="{{ static('css/reset.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ static('css/main.css') }}">
     <script type="text/javascript" src="{{ static('js/host.js') }}"></script>
@@ -30,7 +28,7 @@
                 <div class="form_input cur">
                     <form method="post" id="login-form" @submit="on_submit">
 
-                        
+
                         {{ csrf_input }}
 
                         <input type="text" v-model="username" @blur="check_username" name="username" class="name_input"
@@ -45,7 +43,7 @@
                         <div class="more_input clearfix">
                             <input type="checkbox" v-model="remembered" name="remembered">
                             <label>记住登录</label>
-                            <a href="/forget/"><span>忘记密码 ？</span></a>
+                            <a href="/find_password/" style="float: right">忘记密码</a>
                         </div>
                         <input type="submit" value="登 录" class="input_submit">
                     </form>
@@ -53,7 +51,7 @@
             </div>
             <div class="third_party">
                 <a @click="qq_login" class="qq_login">QQ</a>
-                <a href="#" class="weixin_login">微信</a>
+                <a @click="weibo_login" class="weibo_login">微博</a>
                 <a href="/register/" class="register_btn">立即注册</a>
             </div>
 

@@ -35,5 +35,9 @@ urlpatterns = [
 
     url(r'^', include('orders.urls', namespace='order')),  # 订单模块
 
-    url(r'^', include('forget.urls', namespace='forget')),  # 忘记密码模块
+    url(r'^search/', include('haystack.urls')),  # 搜索模板
+
+    url(r'^', include('payment.urls', namespace='payment')),  # 订单模块
+
+    url(r'^', include('weibo_login.urls', namespace='weibo_login')),  # 微博登录
 ]
