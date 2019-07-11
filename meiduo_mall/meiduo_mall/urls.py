@@ -40,4 +40,6 @@ urlpatterns = [
     url(r'^', include('payment.urls', namespace='payment')),  # 订单模块
 
     url(r'^', include('weibo_login.urls', namespace='weibo_login')),  # 微博登录
+
+    url('^meiduo_admin/', include('meiduo_admin.urls')),  # 美多后台
 ]

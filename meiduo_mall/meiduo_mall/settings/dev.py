@@ -10,7 +10,7 @@ https://docs.djangoproject.com/en/1.11/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
-
+import datetime
 import os, sys
 
 # print(sys.path)
@@ -50,7 +50,7 @@ SECRET_KEY = '(nx@1naz!ub21#_7+aq_m=%8^-z6qdpp+%-dv^9ce%!gp+a_!q'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["www.meiduo.site"]
+ALLOWED_HOSTS = ["www.meiduo.site", "*"]
 
 # Application definition
 # 注册应用,安装应用
@@ -64,6 +64,8 @@ INSTALLED_APPS = [
 
     'haystack',  # 全文检索
     'django_crontab',  # 定时器模块
+    'corsheaders',
+    'rest_framework',
 
     # 只有当应用中需要使用模型迁移建表时,应用必须注册, 当应用中使用了模板要进行渲染时也需要注册
     'users.apps.UsersConfig',  # 用户模块
@@ -78,6 +80,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -314,6 +317,8 @@ CRONJOBS = [
     ('*/1 * * * *', 'contents.crons.generate_static_index_html',
      '>> ' + os.path.join(os.path.dirname(BASE_DIR), 'logs/crontab.log'))
 ]
+
+
 # 解决定时器编码问题
 CRONTAB_COMMAND_PREFIX = 'LANG_ALL=zh_cn.UTF-8'
 
@@ -327,3 +332,33 @@ STATIC_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static')
 WEIBO_CLIENT_ID = '3305669385'
 WEIBO__CLIENT_SECRET = '74c7bea69d5fc64f5c3b80c802325276'
 WEIBO__REDIRECT_URI = 'http://www.meiduo.site:8000/sina_callback'
+
+# 配置跨域白名单
+CORS_ORIGIN_WHITELIST = [
+    "http://127.0.0.1:8080"
+]
+
+# 允许携带cookie值
+CORS_ALLOW_CREDENTIALS = True
+
+# CORS_ALLOW_METHODS = [
+#     "POST"
+# ]
+
+# CORS_ORIGIN_ALLOW_ALL = True
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ),
+}
+
+# datetime.datetime(year=2019, month=7, day=9, hour=11, minute=43, second=56) # 时间点对象
+# datetime.timedelta(days=10) 对像，代表十天（时间段）
+JWT_AUTH = {
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=10),  # token有效期为100天
+    'JWT_RESPONSE_PAYLOAD_HANDLER': 'meiduo_admin.jwt_response_handler.custome_jwt_response_payload_hander',
+    # 自定义函数构建最终jwt返回的结果：添加username和user_id
+}
