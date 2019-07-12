@@ -2,6 +2,7 @@
 
 from .CCPRestSDK import REST
 import ssl
+
 ssl._create_default_https_context = ssl._create_unverified_context
 
 # 说明：主账号，登陆云通讯网站后，可在"控制台-应用"中看到开发者主账号ACCOUNT SID
@@ -22,6 +23,7 @@ _serverPort = "8883"
 
 # 说明：REST API版本号保持不变
 _softVersion = '2013-12-26'
+
 
 # 云通讯官方提供的发送短信代码实例
 # # 发送模板短信
@@ -57,7 +59,6 @@ class CCP(object):
             cls._instance.rest.setAppId(_appId)
         return cls._instance
 
-
     def send_template_sms(self, to, datas, temp_id):
         """发送模板短信"""
         # @param to 手机号码
@@ -71,7 +72,6 @@ class CCP(object):
         else:
             # 返回-1 表示发送失败
             return -1
-
 
 # if __name__ == '__main__':
 #     # 注意： 测试的短信模板编号为1
