@@ -10,6 +10,7 @@ var vm = new Vue({
         sku_price: price,
         sku_amount: 0,
         category_id: category_id,
+        comments_len: 1,
         tab_content: {
 		    detail: true,
             pack: false,
@@ -193,13 +194,14 @@ var vm = new Vue({
         // 获取商品评价信息
         get_goods_comment(){
             if (this.sku_id) {
-                var url = this.hots + '/comments/'+ this.sku_id +'/';
+                var url = this.host + '/comments/'+ this.sku_id +'/';
                 axios.get(url, {
                         responseType: 'json'
                     })
                     .then(response => {
                         this.comments = response.data.comment_list;
-                        for(var i=0; i<this.comments.length; i++){
+                        this.comments_len = this.comments.length;
+                        for(var i=0; i<this.comments_len; i++){
                             this.comments[i].score_class = this.score_classes[this.comments[i].score];
                         }
                     })

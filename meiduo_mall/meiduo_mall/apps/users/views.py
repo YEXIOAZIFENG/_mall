@@ -621,7 +621,7 @@ class CheckUser(View):
 
         # 连接redis数据库
         redis_conn = get_redis_connection('verify_code')
-        redis_image_code = redis_conn.get(image_code_id)  # 获取reids的验证码,bytes类型
+        redis_image_code = redis_conn.get('img_%s' % image_code_id)  # 获取reids的验证码,bytes类型
         redis_conn.delete(image_code_id)  # 删除redis验证码,只能用一次
         redis_image_code_server = redis_image_code.decode()  # 将bytes转str
 

@@ -1,7 +1,7 @@
-
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from rest_framework_jwt.utils import jwt_payload_handler,jwt_encode_handler
+from rest_framework_jwt.utils import jwt_payload_handler, jwt_encode_handler
+
 
 # 定义序列化器
 # 业务流程：对用户名和密码校验，签发token值
@@ -20,7 +20,7 @@ class LoginSerializer(serializers.Serializer):
 
         # 2、用户身份验证（传统验证）
         # authenticate(username=username, password=password)
-        user = authenticate(**attrs) # 返回认证成功的用户对象，如果返回None说明认证失败
+        user = authenticate(**attrs)  # 返回认证成功的用户对象，如果返回None说明认证失败
 
         if not user:
             # 认证失败了

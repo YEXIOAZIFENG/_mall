@@ -2,6 +2,7 @@ import pytz
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
+from rest_framework.permissions import IsAdminUser
 
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
@@ -14,6 +15,7 @@ from users.models import User
 
 class HomeViewSet(ViewSet):
     # 请求方式： GET / meiduo_admin / statistical / total_count /
+    permission_classes = [IsAdminUser]
 
     @action(methods=["get"], detail=False)
     def total_count(self, request):

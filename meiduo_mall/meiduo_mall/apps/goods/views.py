@@ -173,3 +173,35 @@ class DetailVisitView(View):
             counts_data.save()
 
         return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK'})
+
+
+class CommentsView(View):
+    """展示商品评论"""
+
+    def get(self, request, sku_id):
+        """"
+        comment_list
+        评论对应的用户名
+        评论信息
+        """
+        try:
+            sku = SKU.objects.get(id=sku_id)
+        except SKU.DoesNotExist:
+            return http.HttpResponseForbidden('商品不存在')
+        # 查询此商品被评价过的订单商品集
+        ordergoods_qs = sku.ordergoods_set.filter(sku_id=sku_id, is_commented=True)
+
+        comment_list = []
+        # 取出每个商品对象，包装数据
+        for ordergoods in ordergoods_qs:
+            if ordergoods.is_anonymous:
+                username = '某位不愿意透露姓名的网友如是说'
+            else:
+                username = ordergoods.order.user.username
+            comment_list.append({
+                'id': ordergoods.id,
+                'username': username,
+                'comment': ordergoods.comment,
+                'score': ordergoods.score
+            })
+        return http.JsonResponse({'code': RETCODE.OK, 'errmsg': 'OK', 'comment_list': comment_list})

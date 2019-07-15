@@ -1,9 +1,11 @@
-
+from rest_framework.permissions import IsAdminUser
 from rest_framework.views import APIView
 from meiduo_admin.serializers.login_serializer import *
 from rest_framework.response import Response
 
+
 class LoginView(APIView):
+    permission_classes = [IsAdminUser]
 
     # POST
     # meiduo_admin/authorizations/
