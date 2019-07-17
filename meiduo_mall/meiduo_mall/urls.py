@@ -41,5 +41,5 @@ urlpatterns = [
 
     url(r'^', include('weibo_login.urls', namespace='weibo_login')),  # 微博登录
 
-    url('^meiduo_admin/', include('meiduo_admin.urls')),  # 美多后台
+    url('^meiduo_admin/', include('meiduo_admin.urls', namespace='meiduo')),  # 美多后台
 ]

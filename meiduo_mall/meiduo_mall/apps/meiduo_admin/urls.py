@@ -9,6 +9,7 @@ from meiduo_admin.views.home_views import *
 from rest_framework.routers import SimpleRouter
 
 from meiduo_admin.views.image_views import ImageViewSet, SKUView
+from meiduo_admin.views.order_views import OrderInfoView, OrderInfoDetailView
 from meiduo_admin.views.user_view import *
 from meiduo_admin.views.sku_views import *
 from meiduo_admin.views.spu_views import *
@@ -84,6 +85,14 @@ urlpatterns = [
 
     # 获得新建图片可选sku数据
     url(r'skus/simple/$', SKUView.as_view()),
+
+    # 获得多条订单数据
+    url(r'orders/$', OrderInfoView.as_view()),
+    # 获得订单详情数据
+    url(r'orders/(?P<pk>\d+)/$', OrderInfoDetailView.as_view()),
+    # 更新status
+    url(r'orders/(?P<pk>\d+)/status/$', OrderInfoDetailView.as_view()),
+
 ]
 
 router = SimpleRouter()
